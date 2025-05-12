@@ -1,0 +1,70 @@
+version: '3.8'
+services:
+  client:
+    build: ./client
+    ports:
+      - "5173:5173"
+
+  server:
+    build:
+      context: ./server
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  worker:
+    build: ./server
+    command: celery -A user_management worker --loglevel=info
+    depends_on:
+      - server
+      - rabbitmq
+    networks:
+      - default
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  prometheus:
+    image: prom/prometheus
+    privileged: true  # Use with caution
+    volumes:
+      - /root/F_Brain/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command: 
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  proxy:
+    image: nginx:alpine
+    volumes:
+      - ./proxy/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - client
+      - server
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: your_db
+      POSTGRES_USER: your_user
+      POSTGRES_PASSWORD: your_password
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  pg_data:
+  grafana_data:
