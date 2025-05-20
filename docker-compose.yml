@@ -4,23 +4,26 @@ services:
     build: ./client
     ports:
       - "5174:5174"
-
   server:
     build:
       context: ./server
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://your_user:your_password@db:5432/your_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       - db
-
   worker:
     build: ./server
     command: celery -A user_management worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://your_user:your_password@db:5432/your_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       - server
       - rabbitmq
-    networks:
-      - default
+      - db
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -30,12 +33,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
-
   prometheus:
     image: prom/prometheus
     privileged: true  # Use with caution
     volumes:
-      - /root/F_Brain/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command: 
       - '--config.file=/etc/prometheus/prometheus.yml'
 
@@ -48,7 +50,6 @@ services:
     depends_on:
       - client
       - server
-
   db:
     image: postgres:15
     environment:
@@ -57,6 +58,11 @@ services:
       POSTGRES_PASSWORD: your_password
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U your_user -d your_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   grafana:
     image: grafana/grafana
