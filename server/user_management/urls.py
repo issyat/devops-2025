@@ -14,10 +14,14 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.contrib import admin
 from django.urls import path, include
 from . import views
+from . import api
 
 urlpatterns = [
+    path('admin/', admin.site.urls),
     path('hello/', views.hello_view),
-    path('metrics/', include('django_prometheus.urls')),
+    path('', include('django_prometheus.urls')),
+    path('api/', api.api_root, name='api-root'),
 ]
